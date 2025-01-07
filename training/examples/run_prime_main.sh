@@ -1,16 +1,16 @@
 set -x
 
 export NCCL_DEBUG=WARN
-export WANDB_API_KEY='YOUR_WANDB_API_KEY'
+# export WANDB_API_KEY='YOUR_WANDB_API_KEY'
 export VLLM_ATTENTION_BACKEND=FLASH_ATTN
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 export TOKENIZERS_PARALLELISM=true
 
 PROJECT_NAME='PRIME'
 EXPERIMENT_NAME='online-after-solvable-0.2-0.8-policy-self-ref'
-DATA_PATH=path/to/data
+DATA_PATH=/data/workspace/exp-kunato/PRIME/Eurus-2-RL-Data
 SFT_MODEL_PATH=PRIME-RL/Eurus-2-7B-SFT
-CKPT_PATH=path/to/save/dir
+CKPT_PATH=out/
 
 port=6379
 ray start --head \
@@ -45,7 +45,7 @@ python3 -m verl.trainer.main_ppo \
     trainer.project_name=$PROJECT_NAME \
     trainer.experiment_name=$EXPERIMENT_NAME \
     trainer.default_local_dir=$CKPT_PATH/$PROJECT_NAME/$EXPERIMENT_NAME \
-    trainer.n_gpus_per_node=8 \
+    trainer.n_gpus_per_node=4 \
     trainer.nnodes=1 \
     trainer.save_freq=16 \
     trainer.test_freq=16 \
