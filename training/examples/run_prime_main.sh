@@ -12,14 +12,8 @@ DATA_PATH=/data/workspace/exp-kunato/PRIME/Eurus-2-RL-Data
 SFT_MODEL_PATH=PRIME-RL/Eurus-2-7B-SFT
 CKPT_PATH=out/
 
-port=6379
-ray start --head \
-    --port=$port \
-    --num-gpus=8 \
-    --include-dashboard=false \
-    --block &
-
-python3 -m verl.trainer.main_ppo \
+port=6980
+CUDA_VISIBLE_DEVICES=0,1,2,3 python3 -m verl.trainer.main_ppo \
     data.train_files=["$DATA_PATH/train.parquet"] \
     data.val_files=["$DATA_PATH/validation.parquet"] \
     data.train_batch_size=256 \
@@ -29,18 +23,19 @@ python3 -m verl.trainer.main_ppo \
     actor_rollout_ref.model.path=$SFT_MODEL_PATH \
     actor_rollout_ref.actor.optim.lr=5e-7 \
     actor_rollout_ref.actor.ppo_mini_batch_size=256 \
-    actor_rollout_ref.actor.ppo_micro_batch_size=8 \
+    actor_rollout_ref.actor.ppo_micro_batch_size=2 \
     actor_rollout_ref.actor.fsdp_config.param_offload=True \
     actor_rollout_ref.actor.fsdp_config.grad_offload=True \
     actor_rollout_ref.actor.fsdp_config.optimizer_offload=True \
     actor_rollout_ref.actor.entropy_coeff=0. \
-    actor_rollout_ref.rollout.log_prob_micro_batch_size=64 \
+    actor_rollout_ref.rollout.log_prob_micro_batch_size=16 \
     actor_rollout_ref.rollout.tensor_model_parallel_size=1 \
     actor_rollout_ref.rollout.name=vllm \
     actor_rollout_ref.rollout.gpu_memory_utilization=0.7 \
-    actor_rollout_ref.ref.log_prob_micro_batch_size=64 \
+    actor_rollout_ref.ref.log_prob_micro_batch_size=16 \
     actor_rollout_ref.ref.fsdp_config.param_offload=True \
     algorithm.kl_ctrl.kl_coef=0.00 \
+    algorithm.adv_estimator=rloo \
     trainer.logger=['console','wandb'] \
     trainer.project_name=$PROJECT_NAME \
     trainer.experiment_name=$EXPERIMENT_NAME \
@@ -58,11 +53,12 @@ python3 -m verl.trainer.main_ppo \
     algorithm.adv_params.reward_model_gamma=1.0 \
     reward_model.rm_type=prime \
     reward_model.rm_coef=5 \
+    reward_model.prime_norm=batch_norm \
     reward_model.prime_model.path=$SFT_MODEL_PATH  \
     reward_model.prime_model.ref_path=$SFT_MODEL_PATH  \
     reward_model.model.input_tokenizer=null \
     reward_model.prime_granularity=token \
-    reward_model.micro_batch_size=8 \
+    reward_model.micro_batch_size=2 \
     reward_model.prime_model.update=after \
     reward_model.prime_model.beta_train=0.05 \
     reward_model.prime_model.optim.lr=1e-6 \

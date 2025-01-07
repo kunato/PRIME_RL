@@ -120,16 +120,16 @@ reward_model:
   mini_batch_size: ${actor_rollout_ref.actor.ppo_mini_batch_size}
   micro_batch_size: 64
   max_length: null
-  rm_coef: 0 # weight for the reward model
-  rm_type: value # set to prime for process reward
+  rm_coef: 5 # weight for the reward model
+  rm_type: prime # set to prime for process reward
   # configurations for process rewards of prime
   prime_granularity: token # whole
   prime_norm: batch_norm # batch_norm
   prime_model:
     input_tokenizer: ${actor_rollout_ref.model.path}
-    path: openbmb/Eurus-7b-sft
+    path: PRIME-RL/Eurus-2-7B-SFT
     ref_type: freeze # policy
-    ref_path: openbmb/Eurus-7b-sft
+    ref_path: PRIME-RL/Eurus-2-7B-SFT
     external_lib: ${actor_rollout_ref.model.external_lib}
     enable_gradient_checkpointing: ${actor_rollout_ref.model.enable_gradient_checkpointing}
     fsdp_config:
@@ -150,12 +150,10 @@ reward_model:
     beta_train: 0.05
     loss_type: ce # currently only supports ce loss
 
-
-
 algorithm:
   gamma: 1.0
   lam: 1.0
-  adv_estimator: gae
+  adv_estimator: rloo
   # now supports rloo. it treats different source of reward separately.
   # TODO: it should also support different gamma for different rewards.
   adv_params:
