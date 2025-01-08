@@ -8,16 +8,15 @@ export TOKENIZERS_PARALLELISM=true
 
 PROJECT_NAME='PRIME'
 EXPERIMENT_NAME='online-after-solvable-0.2-0.8-policy-self-ref'
-DATA_PATH=/data/workspace/exp-kunato/PRIME/Eurus-2-RL-Data
+DATA_PATH=/data/workspace/kunato/PRIME_RL/Eurus-2-RL-Data
 SFT_MODEL_PATH=PRIME-RL/Eurus-2-7B-SFT
 CKPT_PATH=out/
 
-port=6980
-CUDA_VISIBLE_DEVICES=0,1,2,3 python3 -m verl.trainer.main_ppo \
+RAY_memory_monitor_refresh_ms=0 python -m verl.trainer.main_ppo \
     data.train_files=["$DATA_PATH/train.parquet"] \
     data.val_files=["$DATA_PATH/validation.parquet"] \
-    data.train_batch_size=256 \
-    data.val_batch_size=1024 \
+    data.train_batch_size=64 \
+    data.val_batch_size=256 \
     data.max_prompt_length=1024 \
     data.max_response_length=3072 \
     actor_rollout_ref.model.path=$SFT_MODEL_PATH \

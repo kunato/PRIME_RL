@@ -457,7 +457,7 @@ class RayPRIMETrainer(object):
                 metrics = defaultdict(list)
                 metrics['timing/gen'] = 0
                 metrics['timing/verify'] = 0
-
+                print(f'start: generating for {batch_size * n_samples} samples')
                 while len(valid_batch) < batch_size * n_samples:
                     try:
                         batch_dict = self.train_dataloader.get_next_batch()
@@ -509,8 +509,8 @@ class RayPRIMETrainer(object):
                         valid_batch = roll_batch
                     else:
                         valid_batch = DataProto.concat([valid_batch, roll_batch])
-                    print(
-                        f"collected {len(valid_batch)} / {batch_size * n_samples} rollouts and each prompt has {n_samples} responses")
+                    # print(
+                    #     f"collected {len(valid_batch)} / {batch_size * n_samples} rollouts and each prompt has {n_samples} responses")
 
                 if len(valid_batch) < batch_size * n_samples:
                     break
@@ -521,27 +521,33 @@ class RayPRIMETrainer(object):
                     metrics['train_verify_score/' + k] = np.mean(metrics['train_verify_score/' + k])
 
                 batch = valid_batch
-                print(f'rollout batch size: {len(batch)}')
+                print('end: generation')
+                # print(f'rollout batch size: {len(batch)}')
 
                 if self.use_reference_policy:
+                    print('start: compute_ref_log_prob')
                     # compute reference log_prob
                     with Timer(name='ref', text="{name}: {seconds:.1f} seconds") as timer:
                         ref_log_prob = self.ref_policy_wg.compute_ref_log_prob(batch)
                         batch = batch.union(ref_log_prob)
+                    print(f'end: compute_ref_log_prob; {timer.last}')
                     metrics['timing/ref'] = timer.last
 
                 with Timer(name='reward', text="{name}: {seconds:.1f} seconds") as timer:
                     if self.use_rm:
+                        print('start: compute_rm_score')
                         batch.meta_info['n_samples'] = n_samples
                         reward_model_tensor= self.rm_wg.compute_rm_score(batch)
                         if 'metrics' in reward_model_tensor.meta_info:
                             reward_model_metrics = reduce_metrics(reward_model_tensor.meta_info.pop('metrics'))
                             metrics.update(reward_model_metrics)
                         batch = batch.union(reward_model_tensor)
-
+                        print(f'end: compute_rm_score; {timer.last}')
+                        
                 metrics['timing/reward_model'] = timer.last
 
                 with Timer(name='adv', text="{name}: {seconds:.1f} seconds") as timer:
+                    print('start: reward_fn & calculate adv')
                     reward_tensor_dict, reward_metrics = self.reward_fn(batch)
                     batch.batch['token_level_scores'] = reward_tensor_dict['all']
                     for k, v in reward_metrics.items():
@@ -562,24 +568,28 @@ class RayPRIMETrainer(object):
                                               self.config.algorithm.lam,
                                               adv_estimator=self.config.algorithm.adv_estimator,
                                               config = self.config)
+                    print(f'end: reward_fn & calculate adv; {timer.last}')
                 metrics['timing/adv'] = timer.last
-
-                # critic is disabled
 
                 # implement critic warmup
                 if self.config.trainer.critic_warmup <= global_steps:
+                    print('start: update actor')
                     # update actor
                     with Timer(name='update_actor', text="{name}: {seconds:.1f} seconds") as timer:
                         actor_output = self.actor_rollout_wg.update_actor(batch)
+                    print(f'end: update actor; {timer.last}')
                     metrics['timing/update_actor'] = timer.last
                     actor_output_metrics = reduce_metrics(actor_output.meta_info['metrics'])
                     metrics.update(actor_output_metrics)
 
                 # validate
                 if self.val_reward_fn is not None and (global_steps + 1) % self.config.trainer.test_freq == 0:
+                    
+                    print('start: val reward')
                     with Timer(name='testing', text="{name}: {seconds:.1f} seconds") as timer:
                         val_metrics: dict = self._validate()
                         val_metrics = {f'val/{key}': val for key, val in val_metrics.items()}
+                    print(f'end: val reward; {timer.last}')
                     metrics['timing/testing'] = timer.last
                     metrics.update(val_metrics)
 
